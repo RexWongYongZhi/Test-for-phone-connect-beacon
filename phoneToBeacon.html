@@ -8,11 +8,22 @@
 <body>
   <h1>Web Bluetooth / Availability Test</h1>
   <p id="output">Checking Bluetooth availability...</p>
+  <button id="scanButton" style="margin-top: 10px;">Start Bluetooth Scan</button>
+  <ul id="deviceList"></ul>
+
   <script>
     const outputElement = document.getElementById('output');
+    const scanButton = document.getElementById('scanButton');
+    const deviceList = document.getElementById('deviceList');
 
     function log(message) {
       outputElement.textContent = message;
+    }
+
+    function addDeviceToList(device) {
+      const listItem = document.createElement('li');
+      listItem.textContent = `Device: ${device.name || 'Unnamed'} - ID: ${device.id}`;
+      deviceList.appendChild(listItem);
     }
 
     // Check if the Web Bluetooth API is available
@@ -33,6 +44,33 @@
     } else {
       log('Web Bluetooth API is not supported in this browser.');
     }
+
+    // Handle Bluetooth Scanning
+    scanButton.addEventListener('click', async () => {
+      log('Scanning for Bluetooth devices...');
+      deviceList.innerHTML = ''; // Clear previous results
+
+      try {
+        const options = {
+          acceptAllDevices: true, // Replace with `filters` for specific devices
+          optionalServices: ['0000180a-0000-1000-8000-00805f9b34fb'] // Example UUID
+        };
+
+        const device = await navigator.bluetooth.requestDevice(options);
+        log(`Connected to device: ${device.name || 'Unnamed'}`);
+        addDeviceToList(device);
+
+        // Optionally connect and retrieve GATT services
+        const server = await device.gatt.connect();
+        log(`Device connected. Retrieving GATT services...`);
+        const services = await server.getPrimaryServices();
+        services.forEach(service => {
+          console.log(`Service: ${service.uuid}`);
+        });
+      } catch (error) {
+        log(`Error: ${error.message}`);
+      }
+    });
   </script>
 </body>
 </html>
