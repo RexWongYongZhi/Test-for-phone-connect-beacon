@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Bluetooth Test</title>
+</head>
+<body>
+  <h1>Web Bluetooth / Availability Test</h1>
+  <p id="output">Checking Bluetooth availability...</p>
+  <script>
+    const outputElement = document.getElementById('output');
+
+    function log(message) {
+      outputElement.textContent = message;
+    }
+
+    // Check if the Web Bluetooth API is available
+    if ('bluetooth' in navigator) {
+      navigator.bluetooth.getAvailability()
+        .then(isBluetoothAvailable => {
+          log(`> Bluetooth is ${isBluetoothAvailable ? 'available' : 'unavailable'}`);
+        })
+        .catch(error => {
+          log(`Error: ${error}`);
+        });
+
+      if ('onavailabilitychanged' in navigator.bluetooth) {
+        navigator.bluetooth.addEventListener('availabilitychanged', function(event) {
+          log(`> Bluetooth is ${event.value ? 'available' : 'unavailable'}`);
+        });
+      }
+    } else {
+      log('Web Bluetooth API is not supported in this browser.');
+    }
+  </script>
+</body>
+</html>
