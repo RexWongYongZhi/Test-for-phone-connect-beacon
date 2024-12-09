@@ -1,78 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web Bluetooth Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Beacon Scanner</title>
+    <style>
+        /* Center the page */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Style the round green button */
+        .sign-in-button {
+            display: none;  /* Initially hide the button */
+            width: 10cm;
+            height: 10cm;
+            background-color: green;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            border: none;
+            text-align: center;
+            line-height: 10cm;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 128, 0, 0.5);
+            transition: background-color 0.3s;
+        }
+
+        .sign-in-button:hover {
+            background-color: darkgreen;
+        }
+
+        /* Basic styling for status and info list */
+        #status {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+
+        #info-list {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        #startButton {
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
-  <h1>Web Bluetooth / Availability Test</h1>
-  <p id="output">Checking Bluetooth availability...</p>
-  <button id="scanButton" style="margin-top: 10px;">Start Bluetooth Scan</button>
-  <ul id="deviceList"></ul>
+    <h1>Bluetooth Beacon Scanner</h1>
+    <button id="startButton">Start Bluetooth Scan</button>
+    <p id="status">Status: Ready to scan.</p>
+    <ul id="info-list"></ul>
 
-  <script>
-    const outputElement = document.getElementById('output');
-    const scanButton = document.getElementById('scanButton');
-    const deviceList = document.getElementById('deviceList');
+    <!-- Sign In Button -->
+    <button id="signInButton" class="sign-in-button" onclick="signIn()">Sign In</button>
 
-    function log(message) {
-      outputElement.textContent = message;
-    }
+    <script>
+        let connectedDevice = null;
+        let alreadyConnectedMessageShown = false;
 
-    function addDeviceToList(device) {
-      const listItem = document.createElement('li');
-      listItem.textContent = `Device: ${device.name || 'Unnamed'} - ID: ${device.id}`;
-      deviceList.appendChild(listItem);
-    }
-
-    // Check if the Web Bluetooth API is available
-    if ('bluetooth' in navigator) {
-      navigator.bluetooth.getAvailability()
-        .then(isBluetoothAvailable => {
-          log(`> Bluetooth is ${isBluetoothAvailable ? 'available' : 'unavailable'}`);
-        })
-        .catch(error => {
-          log(`Error: ${error}`);
+        document.getElementById('startButton').addEventListener('click', () => {
+            if (connectedDevice && connectedDevice.gatt.connected) {
+                if (!alreadyConnectedMessageShown) {
+                    updateStatusHTML(`Device "${connectedDevice.name}" is already connected.`);
+                    addInfoToHTML(`Device "${connectedDevice.name}" is already connected. No need to scan again.`);
+                    alreadyConnectedMessageShown = true;
+                }
+            } else {
+                resetPage();
+                requestBluetoothPermission().then((device) => {
+                    if (device) {
+                        startScan(device);
+                    } else {
+                        updateStatusHTML('Bluetooth permission request was canceled.');
+                        addInfoToHTML('Error: Bluetooth permission request canceled.');
+                    }
+                }).catch((error) => {
+                    console.error('Bluetooth permission denied:', error);
+                    updateStatusHTML('Bluetooth permission denied. Please enable Bluetooth and try again.');
+                    addInfoToHTML('Error: Bluetooth permission denied.');
+                });
+            }
         });
 
-      if ('onavailabilitychanged' in navigator.bluetooth) {
-        navigator.bluetooth.addEventListener('availabilitychanged', function(event) {
-          log(`> Bluetooth is ${event.value ? 'available' : 'unavailable'}`);
-        });
-      }
-    } else {
-      log('Web Bluetooth API is not supported in this browser.');
-    }
+        async function requestBluetoothPermission() {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'RFstar_5016' }],  // Replace with your beacon's name
+                    optionalServices: ['0000180a-0000-1000-8000-00805f9b34fb']
+                });
 
-    // Handle Bluetooth Scanning
-    scanButton.addEventListener('click', async () => {
-      log('Scanning for Bluetooth devices...');
-      deviceList.innerHTML = ''; // Clear previous results
+                console.log('Bluetooth permission granted!', device);
+                updateStatusHTML('Bluetooth permission granted!');
+                addInfoToHTML(`Device Found: ${device.name || 'Unknown Device'}`);
 
-      try {
-        // Adjust the UUID of your beacon below
-        const options = {
-          filters: [{
-            services: ['0000180a-0000-1000-8000-00805f9b34fb'], // Replace with the UUID of your beacon
-          }]
-        };
+                return device;
+            } catch (error) {
+                console.error('Bluetooth permission denied or not supported:', error);
+                if (error.name === 'AbortError') {
+                    updateStatusHTML('Bluetooth permission request was canceled.');
+                    addInfoToHTML('Error: Bluetooth permission request canceled.');
+                }
+            }
+        }
 
-        const device = await navigator.bluetooth.requestDevice(options);
-        log(`Connected to device: ${device.name || 'Unnamed'}`);
-        addDeviceToList(device);
+        function startScan(device) {
+            connectedDevice = device;
 
-        // Optionally connect and retrieve GATT services
-        const server = await device.gatt.connect();
-        log(`Device connected. Retrieving GATT services...`);
-        const services = await server.getPrimaryServices();
-        services.forEach(service => {
-          console.log(`Service: ${service.uuid}`);
-        });
-      } catch (error) {
-        log(`Error: ${error.message}`);
-      }
-    });
-  </script>
+            // Connect to the device's GATT server
+            device.gatt.connect().then((server) => {
+                updateStatusHTML(`Connected to device: ${device.name}`);
+                addInfoToHTML(`Device connected: ${device.name || 'Unnamed Device'}`);
+
+                // Example of reading a GATT service (e.g., Device Information service)
+                server.getPrimaryServices().then(services => {
+                    services.forEach(service => {
+                        console.log('Service UUID:', service.uuid);
+                        addInfoToHTML(`Service UUID: ${service.uuid}`);
+                    });
+                });
+            }).catch((error) => {
+                updateStatusHTML(`Failed to connect to device: ${error}`);
+                addInfoToHTML(`Connection failed: ${error}`);
+            });
+
+            // Show the sign-in button after connecting
+            document.getElementById('signInButton').style.display = 'block';
+        }
+
+        function updateStatusHTML(message) {
+            document.getElementById('status').textContent = `Status: ${message}`;
+        }
+
+        function addInfoToHTML(message) {
+            const listItem = document.createElement('li');
+            listItem.textContent = message;
+            document.getElementById('info-list').appendChild(listItem);
+        }
+
+        // Reset the UI elements when scanning is stopped or interrupted
+        function resetPage() {
+            alreadyConnectedMessageShown = false;
+            document.getElementById('info-list').innerHTML = '';
+            document.getElementById('signInButton').style.display = 'none';  // Hide the sign-in button
+            updateStatusHTML('Scanning for devices...');
+        }
+
+        // Sign-in function for demonstration purposes
+        function signIn() {
+            alert('Sign-in function triggered');
+        }
+    </script>
 </body>
 </html>
