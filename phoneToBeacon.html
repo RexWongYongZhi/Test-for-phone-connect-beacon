@@ -51,9 +51,13 @@
       deviceList.innerHTML = ''; // Clear previous results
 
       try {
+        // Adjust the UUID of your beacon below
         const options = {
-          acceptAllDevices: true, // Replace with `filters` for specific devices
-          optionalServices: ['0000180a-0000-1000-8000-00805f9b34fb'] // Example UUID
+          filters: [{
+            services: ['0000180a-0000-1000-8000-00805f9b34fb'], // Replace with the UUID of your beacon
+          }],
+          acceptAllDevices: true, // You can set this to `false` if you want to filter more specifically
+          optionalServices: ['0000180a-0000-1000-8000-00805f9b34fb'] // Example UUID for Device Information Service (can be changed)
         };
 
         const device = await navigator.bluetooth.requestDevice(options);
