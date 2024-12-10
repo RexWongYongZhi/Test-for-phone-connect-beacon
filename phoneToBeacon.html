@@ -3,13 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bluetooth Advertisement Scanner</title>
+    <title>Bluetooth Beacon Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin: 10px;
+            cursor: pointer;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Bluetooth Advertisement Scanner</h1>
-    <button id="startScanButton">Start Watching Advertisements</button>
-    <button id="listDevicesButton">List Paired Devices</button>
-    <p id="status">Status: Ready</p>
+    <h1>Bluetooth Beacon Scanner</h1>
+    <p>Scan for Bluetooth advertisements and interact with beacons.</p>
+    <button id="startScanButton">Start Scan</button>
+    <p id="status">Status: Ready to scan.</p>
     <ul id="info-list"></ul>
 
     <script>
@@ -26,102 +54,42 @@
             infoList.appendChild(li);
         }
 
-        document.getElementById('startScanButton').addEventListener('click', async () => {
+        async function scanForBeacons() {
             try {
+                if (!('bluetooth' in navigator)) {
+                    updateStatus('Web Bluetooth API is not supported in this browser.');
+                    return;
+                }
+
+                updateStatus('Requesting device...');
                 const device = await navigator.bluetooth.requestDevice({
                     acceptAllDevices: true,
-                    optionalServices: ['battery_service'] // Replace with additional service UUIDs if needed
+                    optionalServices: ['battery_service', 'device_information'] // Add more UUIDs if needed
                 });
 
-                updateStatus(`Selected device: ${device.name}`);
+                updateStatus(`Device selected: ${device.name || 'Unknown Device'}`);
                 addInfo(`Device selected: ${device.name || 'Unknown Device'}`);
 
-                // Start watching advertisements
-                await device.watchAdvertisements();
+                if ('watchAdvertisements' in device) {
+                    await device.watchAdvertisements();
+                    updateStatus('Watching advertisements...');
+                    addInfo('Listening for advertisements...');
 
-                device.addEventListener('advertisementreceived', (event) => {
-                    console.log('Advertisement received:', event);
-                    const deviceName = event.device.name || 'Unknown Device';
-                    addInfo(`Advertisement from: ${deviceName}`);
-                    updateStatus(`Received advertisement from: ${deviceName}`);
-
-                    // Parse beacon data (example for Eddystone & iBeacon)
-                    const manufacturerData = event.manufacturerData;
-                    for (const [key, value] of manufacturerData) {
-                        const data = new Uint8Array(value.buffer);
-                        console.log(`Manufacturer ID: ${key}, Data:`, data);
-
-                        if (isEddystoneBeacon(data)) {
-                            addInfo(`Eddystone beacon detected: ${parseEddystone(data)}`);
-                        } else if (isIBeacon(data)) {
-                            addInfo(`iBeacon detected: ${parseIBeacon(data)}`);
-                        } else {
-                            addInfo('Unknown beacon format detected.');
-                        }
-                    }
-                });
+                    device.addEventListener('advertisementreceived', (event) => {
+                        console.log('Advertisement received:', event);
+                        addInfo(`Advertisement received from: ${event.device.name || 'Unknown Device'}`);
+                    });
+                } else {
+                    updateStatus('watchAdvertisements() not supported on this device.');
+                }
             } catch (error) {
-                console.error('Error watching advertisements:', error);
-                updateStatus('Error watching advertisements.');
+                console.error('Error during scan:', error);
+                updateStatus('Error during scan. See console for details.');
+                addInfo(`Error: ${error.message}`);
             }
-        });
-
-        document.getElementById('listDevicesButton').addEventListener('click', async () => {
-            try {
-                const devices = await navigator.bluetooth.getDevices();
-                updateStatus('Paired devices listed.');
-                devices.forEach((device) => {
-                    console.log('Paired device:', device);
-                    addInfo(`Paired Device: ${device.name || 'Unnamed Device'} (ID: ${device.id})`);
-                });
-            } catch (error) {
-                console.error('Error getting paired devices:', error);
-                updateStatus('Error getting paired devices.');
-            }
-        });
-
-        // Utility functions for detecting beacon types
-        function isEddystoneBeacon(data) {
-            // Eddystone beacons typically start with a specific byte pattern
-            return data[0] === 0xaa && data[1] === 0xfe; // Check Eddystone Prefix
         }
 
-        function parseEddystone(data) {
-            const frameType = data[2];
-            if (frameType === 0x10) {
-                const url = parseEddystoneURL(data);
-                return `Eddystone-URL: ${url}`;
-            }
-            return 'Eddystone beacon detected but not URL frame.';
-        }
-
-        function parseEddystoneURL(data) {
-            const urlPrefix = ['http://www.', 'https://www.', 'http://', 'https://'];
-            const encodedURL = [
-                '.com/', '.org/', '.edu/', '.net/', '.info/', '.biz/', '.gov/',
-                '.com', '.org', '.edu', '.net', '.info', '.biz', '.gov'
-            ];
-
-            const prefix = urlPrefix[data[4]];
-            let url = prefix;
-            for (let i = 5; i < data.length; i++) {
-                const char = data[i];
-                url += char < encodedURL.length ? encodedURL[char] : String.fromCharCode(char);
-            }
-            return url;
-        }
-
-        function isIBeacon(data) {
-            // iBeacon identifiers typically follow Apple's format
-            return data.length >= 23 && data[0] === 0x4c && data[1] === 0x00; // Apple manufacturer ID
-        }
-
-        function parseIBeacon(data) {
-            const uuid = Array.from(data.slice(2, 18)).map(byte => byte.toString(16).padStart(2, '0')).join('');
-            const major = (data[18] << 8) | data[19];
-            const minor = (data[20] << 8) | data[21];
-            return `UUID: ${uuid}, Major: ${major}, Minor: ${minor}`;
-        }
+        document.getElementById('startScanButton').addEventListener('click', scanForBeacons);
     </script>
 </body>
 </html>
