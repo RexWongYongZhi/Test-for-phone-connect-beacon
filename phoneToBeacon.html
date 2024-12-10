@@ -95,8 +95,8 @@
         async function requestBluetoothPermission() {
             try {
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'RFstar_5016' }],  // Replace with your beacon's name
-                    optionalServices: ['0000180a-0000-1000-8000-00805f9b34fb']
+                    filters: [{ namePrefix: 'RFstar' }],  // Match devices with names starting with "RFstar"
+                    optionalServices: ['0000180a-0000-1000-8000-00805f9b34fb']  // Device Information service
                 });
 
                 console.log('Bluetooth permission granted!', device);
@@ -116,12 +116,10 @@
         function startScan(device) {
             connectedDevice = device;
 
-            // Connect to the device's GATT server
             device.gatt.connect().then((server) => {
                 updateStatusHTML(`Connected to device: ${device.name}`);
                 addInfoToHTML(`Device connected: ${device.name || 'Unnamed Device'}`);
 
-                // Example of reading a GATT service (e.g., Device Information service)
                 server.getPrimaryServices().then(services => {
                     services.forEach(service => {
                         console.log('Service UUID:', service.uuid);
@@ -129,35 +127,32 @@
                     });
                 });
             }).catch((error) => {
-                updateStatusHTML(`Failed to connect to device: ${error}`);
-                addInfoToHTML(`Connection failed: ${error}`);
+                console.error('Failed to connect to device:', error);
+                updateStatusHTML('Failed to connect to the device. Please try again.');
+                addInfoToHTML('Error: Failed to connect to the device.');
             });
+        }
 
-            // Show the sign-in button after connecting
-            document.getElementById('signInButton').style.display = 'block';
+        function resetPage() {
+            connectedDevice = null;
+            alreadyConnectedMessageShown = false;
+            updateStatusHTML('Ready to scan.');
+            document.getElementById('info-list').innerHTML = '';
         }
 
         function updateStatusHTML(message) {
             document.getElementById('status').textContent = `Status: ${message}`;
         }
 
-        function addInfoToHTML(message) {
+        function addInfoToHTML(info) {
+            const infoList = document.getElementById('info-list');
             const listItem = document.createElement('li');
-            listItem.textContent = message;
-            document.getElementById('info-list').appendChild(listItem);
+            listItem.textContent = info;
+            infoList.appendChild(listItem);
         }
 
-        // Reset the UI elements when scanning is stopped or interrupted
-        function resetPage() {
-            alreadyConnectedMessageShown = false;
-            document.getElementById('info-list').innerHTML = '';
-            document.getElementById('signInButton').style.display = 'none';  // Hide the sign-in button
-            updateStatusHTML('Scanning for devices...');
-        }
-
-        // Sign-in function for demonstration purposes
         function signIn() {
-            alert('Sign-in function triggered');
+            alert('Sign-In button clicked! You can handle your sign-in logic here.');
         }
     </script>
 </body>
