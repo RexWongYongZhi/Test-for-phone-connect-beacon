@@ -7,7 +7,7 @@
 </head>
 <body>
     <h1>Beacon Sign-In Example</h1>
-    <button id="startScanButton">Start Scanning for Paired Beacon</button>
+    <button id="startScanButton">Start Scanning for Beacon</button>
     <button id="signInButton" disabled>Sign In for Daily</button>
     <p id="status">Status: Waiting for action</p>
     <ul id="info-list"></ul>
@@ -29,29 +29,25 @@
             infoList.appendChild(li);
         }
 
-        // Function to handle paired devices
-        async function checkPairedDevices() {
+        // Function to handle device selection
+        async function scanAndConnectToBeacon() {
             try {
-                const devices = await navigator.bluetooth.getDevices();
-                if (devices.length === 0) {
-                    updateStatus('No paired devices found.');
-                    addInfo('No paired devices found.');
-                    return;
-                }
-
-                devices.forEach((device) => {
-                    console.log('Paired device:', device.name, 'ID:', device.id);
-
-                    // Check for the specific beacon by name or UUID
-                    if (device.name === 'RFstar_5016') {
-                        updateStatus('Beacon found, ready to sign in!');
-                        addInfo(`Beacon found: ${device.name}`);
-                        signInButton.disabled = false;  // Enable the sign-in button
-                    }
+                // Requesting device from Web Bluetooth API
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'RFstar_5016' }], // Filter by the beacon name
+                    optionalServices: ['battery_service'] // Optional service to query
                 });
+
+                updateStatus('Beacon found, ready to sign in!');
+                addInfo(`Beacon found: ${device.name}`);
+                signInButton.disabled = false;  // Enable the sign-in button
+
+                // Handle connecting to the beacon here if necessary
+                // Example: await device.gatt.connect();
+                
             } catch (error) {
-                console.error('Error retrieving paired devices:', error);
-                updateStatus('Error retrieving paired devices.');
+                console.error('Error during Bluetooth scanning or connection:', error);
+                updateStatus('Error scanning for the beacon.');
             }
         }
 
@@ -63,9 +59,9 @@
 
         // Event listener for start scanning button
         document.getElementById('startScanButton').addEventListener('click', () => {
-            updateStatus('Scanning for paired devices...');
-            addInfo('Scanning for paired devices...');
-            checkPairedDevices(); // Check paired devices when the button is clicked
+            updateStatus('Scanning for the beacon...');
+            addInfo('Scanning for the beacon...');
+            scanAndConnectToBeacon(); // Start scanning for the beacon
         });
 
         // Event listener for sign-in button
