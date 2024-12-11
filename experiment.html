@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Beacon Scanner</title>
+</head>
+<body>
+    <h1>Beacon Scanner</h1>
+    <button id="scanButton">Scan for Beacons</button>
+    <ul id="beaconList"></ul>
+
+    <script>
+        document.getElementById('scanButton').addEventListener('click', async () => {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: []
+                });
+
+                console.log('Selected device:', device.name);
+
+                // Attempt to watch advertisements
+                if (device.watchAdvertisements) {
+                    await device.watchAdvertisements();
+                    device.addEventListener('advertisementreceived', (event) => {
+                        console.log('Advertisement received:', event);
+                        const beaconList = document.getElementById('beaconList');
+                        const listItem = document.createElement('li');
+                        listItem.textContent = `Beacon detected: ${event.device.name || 'Unknown Device'}`;
+                        beaconList.appendChild(listItem);
+                    });
+                } else {
+                    console.log('Advertisement watching not supported on this device.');
+                }
+            } catch (error) {
+                console.error('Error scanning beacons:', error);
+            }
+        });
+    </script>
+</body>
+</html>
