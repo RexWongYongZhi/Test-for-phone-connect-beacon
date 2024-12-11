@@ -1,40 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Beacon Scanner</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beacon Sign-In Example</title>
 </head>
 <body>
-    <h1>Beacon Scanner</h1>
-    <button id="scanButton">Scan for Beacons</button>
-    <ul id="beaconList"></ul>
+    <h1>Beacon Sign-In Example</h1>
+    <button id="startScanButton">Start Scanning for Paired Beacon</button>
+    <button id="signInButton" disabled>Sign In for Daily</button>
+    <p id="status">Status: Waiting for action</p>
+    <ul id="info-list"></ul>
 
     <script>
-        document.getElementById('scanButton').addEventListener('click', async () => {
+        const statusElement = document.getElementById('status');
+        const infoList = document.getElementById('info-list');
+        const signInButton = document.getElementById('signInButton');
+
+        // Update status on the page
+        function updateStatus(message) {
+            statusElement.textContent = `Status: ${message}`;
+        }
+
+        // Add info to the list
+        function addInfo(message) {
+            const li = document.createElement('li');
+            li.textContent = message;
+            infoList.appendChild(li);
+        }
+
+        // Function to handle paired devices
+        async function checkPairedDevices() {
             try {
-                const device = await navigator.bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: []
-                });
-
-                console.log('Selected device:', device.name);
-
-                // Attempt to watch advertisements
-                if (device.watchAdvertisements) {
-                    await device.watchAdvertisements();
-                    device.addEventListener('advertisementreceived', (event) => {
-                        console.log('Advertisement received:', event);
-                        const beaconList = document.getElementById('beaconList');
-                        const listItem = document.createElement('li');
-                        listItem.textContent = `Beacon detected: ${event.device.name || 'Unknown Device'}`;
-                        beaconList.appendChild(listItem);
-                    });
-                } else {
-                    console.log('Advertisement watching not supported on this device.');
+                const devices = await navigator.bluetooth.getDevices();
+                if (devices.length === 0) {
+                    updateStatus('No paired devices found.');
+                    addInfo('No paired devices found.');
+                    return;
                 }
+
+                devices.forEach((device) => {
+                    console.log('Paired device:', device.name, 'ID:', device.id);
+
+                    // Check for the specific beacon by name or UUID
+                    if (device.name === 'RFstar_5016') {
+                        updateStatus('Beacon found, ready to sign in!');
+                        addInfo(`Beacon found: ${device.name}`);
+                        signInButton.disabled = false;  // Enable the sign-in button
+                    }
+                });
             } catch (error) {
-                console.error('Error scanning beacons:', error);
+                console.error('Error retrieving paired devices:', error);
+                updateStatus('Error retrieving paired devices.');
             }
+        }
+
+        // Function to handle sign-in action
+        function handleSignIn() {
+            updateStatus('Sign-in successful for today!');
+            addInfo('You have successfully signed in for the day!');
+        }
+
+        // Event listener for start scanning button
+        document.getElementById('startScanButton').addEventListener('click', () => {
+            updateStatus('Scanning for paired devices...');
+            addInfo('Scanning for paired devices...');
+            checkPairedDevices(); // Check paired devices when the button is clicked
         });
+
+        // Event listener for sign-in button
+        signInButton.addEventListener('click', handleSignIn);
     </script>
 </body>
 </html>
